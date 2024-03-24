@@ -45,7 +45,7 @@ func main() {
 		JOIN ProductsShelves ps ON ps.product_id = p.id
 		JOIN Shelves s ON s.id = ps.shelf_id
 		WHERE po.order_id = ANY($1) AND ps.is_main = true
-		ORDER BY p.id ASC
+		ORDER BY s.name, po.order_id ASC
 	`, pq.Array(orderIDs))
 	if err != nil {
 		fmt.Println("Error executing the query:", err)
