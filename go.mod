@@ -1,4 +1,4 @@
-module online_store
+module github.com/DusmatzodaQurbonli/online-store
 
 go 1.20
 
