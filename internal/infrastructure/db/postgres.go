@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/lib/pq"
-
 	"github.com/DusmatzodaQurbonli/online-store/internal/domain/entity"
 
 )
@@ -26,11 +24,13 @@ func (p *Database) GetItems(orderIDs []string) ([]entity.Item, error) {
 	items := []entity.Item{}
 
 	// Запрос 1: Получаем основные данные о продуктах
+	orderIDsStr := strings.Join(orderIDs, ",")
 	rows, err := p.DB.Query(`
-		SELECT po.product_id, po.order_id, po.quantity
-		FROM ProductsOrders po
-		WHERE po.order_id = ANY($1)
-	`, pq.Array(orderIDs))
+	SELECT po.product_id, po.order_id, po.quantity
+	FROM ProductsOrders po
+	WHERE po.order_id = ANY(ARRAY[` + orderIDsStr + `]::varchar[])
+`)
+
 	if err != nil {
 		return nil, err
 	}
