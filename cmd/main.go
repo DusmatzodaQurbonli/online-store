@@ -1,14 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/DusmatzodaQurbonli/online-store/internal/app/handler"
-	"github.com/DusmatzodaQurbonli/online-store/internal/app/usecase"
-	"github.com/DusmatzodaQurbonli/online-store/internal/domain/repository"
-	"github.com/DusmatzodaQurbonli/online-store/internal/infrastructure/db"
+	"github.com/pkg/errors"
+
+	"github.com/DusmatzodaQurbonli/online-store/internal/db"
+	"github.com/DusmatzodaQurbonli/online-store/internal/handler"
+	"github.com/DusmatzodaQurbonli/online-store/internal/services"
+	"github.com/DusmatzodaQurbonli/online-store/internal/types"
+
 )
 
 const (
@@ -20,25 +24,40 @@ const (
 )
 
 func main() {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-
-	db, err := db.NewDatabase(connStr)
+	const pathConfig = `config/config.json`
+	config, err := getConfig(pathConfig)
 	if err != nil {
-		fmt.Println("Error connecting to the database:", err)
+		fmt.Println("Error getting config:", err)
 		return
 	}
-	defer db.Close()
-
-	itemRepo := repository.NewItemRepository(db)
-	itemUsecase := usecase.NewItemUsecase(itemRepo)
-	itemHandler := handler.NewItemHandler(itemUsecase)
+	newDB, err := db.NewDB(config)
+	if err != nil {
+		fmt.Println("Error getting newdb:", err)
+		return
+	}
+	defer newDB.Pool.Close()
+	service := services.NewService(newDB)
+	handler := handler.NewHandler(service)
 
 	orderIDs := strings.Split(os.Args[1], ",")
-	items, err := itemHandler.GetItems(orderIDs)
+	items, err := handler.GetOrders(orderIDs)
 	if err != nil {
 		fmt.Println("Error getting items:", err)
 		return
 	}
 
-	itemHandler.PrintItems(items)
+	handler.PrintItems(orderIDs, items)
+}
+
+func getConfig(path string) (*types.Config, error) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	var config types.Config
+	err = json.Unmarshal(file, &config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return &config, nil
 }

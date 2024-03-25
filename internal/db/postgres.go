@@ -1,43 +1,50 @@
 package db
 
 import (
-	"database/sql"
+	"context"
+	"log"
 	"strings"
+	"time"
 
-	"github.com/DusmatzodaQurbonli/online-store/internal/domain/entity"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/lib/pq"
+	errors "github.com/pkg/errors"
 
+	"github.com/DusmatzodaQurbonli/online-store/internal/types"
 )
 
-type Database struct {
-	*sql.DB
+type DB struct {
+	Pool *pgxpool.Pool
 }
 
-func NewDatabase(connStr string) (*Database, error) {
-	db, err := sql.Open("postgres", connStr)
+func NewDB(config *types.Config) (*DB, error) {
+	dsn := "postgres://" + config.UserName + ":" + config.Password + "@" + config.Host + ":" + config.Port + "/" + config.Database
+	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancelFunc()
+	pool, err := pgxpool.Connect(ctx, dsn)
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		return nil, errors.Wrap(err, "pgx fail connect")
 	}
-	return &Database{db}, nil
+	return &DB{Pool: pool}, nil
 }
 
-func (p *Database) GetItems(orderIDs []string) ([]entity.Item, error) {
-	items := []entity.Item{}
+func (db *DB) GetOrdersByID(orderIDs []string) ([]types.Item, error) {
+	items := []types.Item{}
 
 	// Запрос 1: Получаем основные данные о продуктах
-	orderIDsStr := strings.Join(orderIDs, ",")
-	rows, err := p.DB.Query(`
-	SELECT po.product_id, po.order_id, po.quantity
-	FROM ProductsOrders po
-	WHERE po.order_id = ANY(ARRAY[` + orderIDsStr + `]::varchar[])
-`)
-
+	rows, err := db.Pool.Query(`
+		SELECT po.product_id, po.order_id, po.quantity
+		FROM ProductsOrders po
+		WHERE po.order_id = ANY($1)
+	`, pq.Array(orderIDs))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var item entity.Item
+		var item types.Item
 		if err := rows.Scan(&item.ProductID, &item.Order, &item.Amount); err != nil {
 			return nil, err
 		}
@@ -46,7 +53,7 @@ func (p *Database) GetItems(orderIDs []string) ([]entity.Item, error) {
 
 	// Запрос 2: Получаем данные о продуктах
 	for i, item := range items {
-		row := p.DB.QueryRow(`
+		row := db.Pool.QueryRow(`
 			SELECT p.name
 			FROM Products p
 			WHERE p.id = $1
@@ -61,7 +68,7 @@ func (p *Database) GetItems(orderIDs []string) ([]entity.Item, error) {
 
 	// Запрос 3: Получаем данные о полках
 	for i, item := range items {
-		row := p.DB.QueryRow(`
+		row := db.Pool.QueryRow(`
 			SELECT s.name
 			FROM Shelves s
 			WHERE s.id = (
@@ -80,7 +87,7 @@ func (p *Database) GetItems(orderIDs []string) ([]entity.Item, error) {
 
 	// Запрос 4: Получаем дополнительные данные о полках
 	for i, item := range items {
-		rows, err := p.DB.Query(`
+		rows, err := db.Pool.Query(`
 			SELECT s.name
 			FROM Shelves s
 			WHERE s.id IN (

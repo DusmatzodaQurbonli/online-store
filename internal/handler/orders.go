@@ -1,23 +1,27 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"strings"
+
+	"github.com/DusmatzodaQurbonli/online-store/internal/services"
+	"github.com/DusmatzodaQurbonli/online-store/internal/types"
 )
 
-type ItemHandler struct {
-	usecase usecase.ItemUsecase
+type Handler struct {
+	Service *services.Service
 }
 
-func NewItemHandler(usecase usecase.ItemUsecase) *ItemHandler {
-	return &ItemHandler{usecase: usecase}
+func NewHandler(service *services.Service) *Handler {
+	return &Handler{Service: service}
 }
 
-func (h *ItemHandler) GetItems(orderIDs []string) ([]entity.Item, error) {
-	return h.usecase.GetItems(orderIDs)
+func (h *Handler) GetOrders(orderIDs []string) ([]types.Item, error) {
+	return h.Service.GetOrdersByID(context.Background(), orderIDs)
 }
 
-func (h *ItemHandler) PrintItems(orderIDs []string, items []entity.Item) {
+func (h *Handler) PrintItems(orderIDs []string, items []types.Item) {
 	fmt.Println("=+=+=+=\nСтраница сборки заказов", strings.Join(orderIDs, ","))
 	currentShelf := ""
 	for _, item := range items {
@@ -33,5 +37,6 @@ func (h *ItemHandler) PrintItems(orderIDs []string, items []entity.Item) {
 		} else {
 			fmt.Println()
 		}
+		fmt.Println()
 	}
 }
