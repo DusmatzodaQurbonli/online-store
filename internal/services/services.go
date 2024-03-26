@@ -5,6 +5,7 @@ import (
 
 	"github.com/DusmatzodaQurbonli/online-store/internal/db"
 	"github.com/DusmatzodaQurbonli/online-store/internal/types"
+
 )
 
 type Service struct {
@@ -16,5 +17,5 @@ func NewService(db *db.DB) *Service {
 }
 
 func (s *Service) GetOrdersByID(ctx context.Context, orderIDs []string) ([]types.Item, error) {
-	return s.db.GetOrdersByID(orderIDs)
+	return s.db.GetOrdersByID(ctx, orderIDs)
 }

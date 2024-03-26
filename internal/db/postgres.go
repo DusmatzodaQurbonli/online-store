@@ -29,15 +29,16 @@ func NewDB(config *types.Config) (*DB, error) {
 	return &DB{Pool: pool}, nil
 }
 
-func (db *DB) GetOrdersByID(orderIDs []string) ([]types.Item, error) {
+func (db *DB) GetOrdersByID(ctx context.Context, orderIDs []string) ([]types.Item, error) {
 	items := []types.Item{}
 
 	// Запрос 1: Получаем основные данные о продуктах
-	rows, err := db.Pool.Query(`
-		SELECT po.product_id, po.order_id, po.quantity
-		FROM ProductsOrders po
-		WHERE po.order_id = ANY($1)
-	`, pq.Array(orderIDs))
+	rows, err := db.Pool.Query(ctx, `
+	SELECT po.product_id, po.order_id, po.quantity
+	FROM ProductsOrders po
+	WHERE po.order_id = ANY($1)
+`, pq.Array(orderIDs))
+
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func (db *DB) GetOrdersByID(orderIDs []string) ([]types.Item, error) {
 
 	// Запрос 2: Получаем данные о продуктах
 	for i, item := range items {
-		row := db.Pool.QueryRow(`
+		row := db.Pool.QueryRow(ctx, `
 			SELECT p.name
 			FROM Products p
 			WHERE p.id = $1
@@ -68,7 +69,7 @@ func (db *DB) GetOrdersByID(orderIDs []string) ([]types.Item, error) {
 
 	// Запрос 3: Получаем данные о полках
 	for i, item := range items {
-		row := db.Pool.QueryRow(`
+		row := db.Pool.QueryRow(ctx, `
 			SELECT s.name
 			FROM Shelves s
 			WHERE s.id = (
@@ -87,7 +88,7 @@ func (db *DB) GetOrdersByID(orderIDs []string) ([]types.Item, error) {
 
 	// Запрос 4: Получаем дополнительные данные о полках
 	for i, item := range items {
-		rows, err := db.Pool.Query(`
+		rows, err := db.Pool.Query(ctx, `
 			SELECT s.name
 			FROM Shelves s
 			WHERE s.id IN (

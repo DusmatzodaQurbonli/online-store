@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/DusmatzodaQurbonli/online-store/internal/services"
@@ -22,6 +23,9 @@ func (h *Handler) GetOrders(orderIDs []string) ([]types.Item, error) {
 }
 
 func (h *Handler) PrintItems(orderIDs []string, items []types.Item) {
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Shelf < items[j].Shelf
+	})
 	fmt.Println("=+=+=+=\nСтраница сборки заказов", strings.Join(orderIDs, ","))
 	currentShelf := ""
 	for _, item := range items {
